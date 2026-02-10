@@ -1,0 +1,163 @@
+esphome:
+  name: medidorconsumo4
+  friendly_name: MedidorConsumo4
+
+  on_boot:
+    priority: -100
+    then:
+      - output.turn_on: led_gpio18
+      - delay: 300ms
+      - output.turn_off: led_gpio18
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# ================= LOGGER =================
+logger:
+  level: INFO
+
+# ================= LED =================
+output:
+  - platform: gpio
+    pin: GPIO17
+    id: led_gpio18
+
+# ================= GPIO MUX =================
+switch:
+  - platform: gpio
+    pin: GPIO26
+    id: mux_s0
+    internal: true
+
+  - platform: gpio
+    pin: GPIO27
+    id: mux_s1
+    internal: true
+
+# ================= I2C =================
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+
+# ================= ADS1115 =================
+ads1115:
+  - address: 0x48
+
+sensor:
+  # LECTURA CRUDA DEL ADS
+  - platform: ads1115
+    id: ads_diff
+    multiplexer: A0_A1
+    gain: 2.048
+    update_interval: 0.1s
+    internal: true
+
+  # ================= SCT 1 =================
+  - platform: ct_clamp
+    id: corriente_1
+    sensor: ads_diff
+    name: "Corriente SCT 1"
+    update_interval: never
+    filters:
+      - multiply: 26.85
+      - lambda: |-
+          if (x < 0.12) return 0.0;
+          return x;
+
+  # ================= SCT 2 =================
+  - platform: ct_clamp
+    id: corriente_2
+    sensor: ads_diff
+    name: "Corriente SCT 2"
+    update_interval: never
+    filters:
+      - multiply: 26.85
+      - lambda: |-
+          if (x < 0.12) return 0.0;
+          return x;
+
+  # ================= SCT 3 =================
+  - platform: ct_clamp
+    id: corriente_3
+    sensor: ads_diff
+    name: "Corriente SCT 3"
+    update_interval: never
+    filters:
+      - multiply: 26.85
+      - lambda: |-
+          if (x < 0.12) return 0.0;
+          return x;
+
+  # ================= SCT 4 =================
+  - platform: ct_clamp
+    id: corriente_4
+    sensor: ads_diff
+    name: "Corriente SCT 4"
+    update_interval: never
+    filters:
+      - multiply: 26.85
+      - lambda: |-
+          if (x < 0.12) return 0.0;
+          return x;
+
+
+# ================= BUCLE DE LECTURA =================
+interval:
+  - interval: 2s
+    then:
+      # -------- SCT 1 (00) --------
+      - switch.turn_off: mux_s0
+      - switch.turn_off: mux_s1
+      - delay: 200ms
+      - component.update: corriente_1
+
+      # -------- SCT 2 (01) --------
+      - switch.turn_on: mux_s0
+      - switch.turn_off: mux_s1
+      - delay: 200ms
+      - component.update: corriente_2
+
+      # -------- SCT 3 (10) --------
+      - switch.turn_off: mux_s0
+      - switch.turn_on: mux_s1
+      - delay: 200ms
+      - component.update: corriente_3
+
+      # -------- SCT 4 (11) --------
+      - switch.turn_on: mux_s0
+      - switch.turn_on: mux_s1
+      - delay: 200ms
+      - component.update: corriente_4
+
+# ================= HOME ASSISTANT =================
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+
+# ================= WIFI =================
+wifi:
+  ssid: 
+  password: 
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  on_connect:
+    - output.turn_on: led_gpio18
+
+  on_disconnect:
+    - output.turn_off: led_gpio18
+
+  ap:
+    ssid: "Medidorconsumo4 Fallback Hotspot"
+    password: "pHqcS2fTzOOF"
+
+captive_portal:

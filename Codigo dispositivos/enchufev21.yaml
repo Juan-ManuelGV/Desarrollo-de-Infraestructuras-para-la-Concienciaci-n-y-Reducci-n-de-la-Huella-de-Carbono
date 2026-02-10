@@ -1,0 +1,89 @@
+esphome:
+  name: enchufev21
+  platform: ESP32
+  board: esp32-c3-devkitm-1
+
+  # Ejecutar al arrancar
+  on_boot:
+    priority: -100
+    then:
+      - uart.write:
+          id: uart0_hw
+          data: "Iniciando firmware...\r\n"
+      - output.turn_on: led_gpio18
+      - delay: 300ms
+      - output.turn_off: led_gpio18
+      - delay: 300ms
+      - output.turn_on: led_gpio18
+      - delay: 300ms
+      - output.turn_off: led_gpio18
+
+# UART para imprimir logs por pines GPIO21 (TX) y GPIO20 (RX)
+uart:
+  id: uart0_hw
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 115200
+
+# Desactiva el log por USB para evitar conflictos
+logger:
+  baud_rate: 0
+
+# Salidas GPIO
+output:
+  - platform: gpio
+    pin: GPIO18
+    id: led_gpio18
+
+  - platform: gpio
+    pin: GPIO4
+    id: rele_gpio4
+
+# Switch para manejar el relé desde Home Assistant
+switch:
+  - platform: output
+    name: "Rele Controlado"
+    output: rele_gpio4
+    id: switch_rele
+    on_turn_on:
+      - output.turn_on: led_gpio18
+    on_turn_off:
+      - output.turn_off: led_gpio18
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+
+# Conexión WiFi con fallback a AP si falla
+wifi:
+  ssid: ""
+  password: ""
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  on_connect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi conectado!\r\n"
+    - output.turn_on: led_gpio18
+
+  on_disconnect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi desconectado!\r\n"
+    - output.turn_off: led_gpio18
+
+  ap:
+    ssid: "Esphome-Fallback"
+    password: "123456789"
+
+  fast_connect: true
+  reboot_timeout: 0s
+  power_save_mode: none

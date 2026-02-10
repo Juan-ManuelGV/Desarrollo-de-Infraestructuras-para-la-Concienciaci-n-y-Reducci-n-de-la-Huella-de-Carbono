@@ -1,0 +1,12 @@
+services:
+  esphome:
+    image: esphome/esphome:2024.4.0
+    container_name: esphome
+    volumes:
+      - ./config:/config
+      - /dev:/dev
+    ports:
+      - "6052:6052"
+    restart: unless-stopped
+    stdin_open: true
+    tty: true

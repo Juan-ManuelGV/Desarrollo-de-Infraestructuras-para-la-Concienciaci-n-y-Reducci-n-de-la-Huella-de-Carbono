@@ -1,0 +1,104 @@
+esphome:
+  name: medidorconsumov1
+  friendly_name: medidorconsumov1
+
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  
+    password: ""
+
+wifi:
+  ssid: 
+  password: 
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  ap:
+    ssid: "Esphome-Web-C2E494"
+    password: "xoROeZx45m3o"
+
+# Configura salidas GPIO
+output:
+  - platform: gpio
+    pin: GPIO17
+    id: led_output
+
+  - platform: gpio
+    pin: GPIO15
+    id: relay_output
+
+# Define un switch para controlar el relé desde Home Assistant
+switch:
+  - platform: output
+    name: "Relé GPIO15"
+    output: relay_output
+    id: relay_switch
+    on_turn_on:
+      - output.turn_on: led_output
+    on_turn_off:
+      - output.turn_off: led_output
+
+# O puedes usar esta luz si prefieres manejar el LED como light
+light:
+  - platform: binary
+    name: "LED GPIO17"
+    output: led_output
+
+# I2C para el ADS1115
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+
+ads1115:
+  - address: 0x48
+
+sensor:
+  - platform: ads1115
+    id: sensor_corriente_diff
+    multiplexer: 'A0_A1'
+    gain: 2.048
+    update_interval: 0.1s
+    internal: true  # Importante
+    # sin "name: ..." evita que lo imprima en log
+
+  - platform: ct_clamp
+    sensor: sensor_corriente_diff
+    name: "Corriente Total (Diferencial A0-A1)"
+    update_interval: 5s
+    filters:
+      - multiply: 26.85  #valor ajustado, sin ajustar es 30
+    id: corriente_total
+
+  - platform: template
+    name: "Potencia Estimada"
+    unit_of_measurement: "W"
+    accuracy_decimals: 1
+    lambda: |-
+      if (isnan(id(corriente_total).state)) {
+        return NAN;
+      } else {
+        return id(corriente_total).state * 230.0;  // Cambia si usas 120V
+      }
+    update_interval: 5s
+
+
+
+captive_portal:

@@ -1,0 +1,167 @@
+esphome:
+  name: interruptorluzv2
+  friendly_name: interruptorLuzV2
+
+
+  on_boot:
+    # Animación LED (muy temprano)
+    - priority: -100
+      then:
+        - uart.write:
+            id: uart0_hw
+            data: "Iniciando firmware...\r\n"
+        - output.turn_on: led_gpio18
+        - delay: 300ms
+        - output.turn_off: led_gpio18
+        - delay: 300ms
+        - output.turn_on: led_gpio18
+        - delay: 300ms
+        - output.turn_off: led_gpio18
+
+    # Estabilización GPIO2 (CRÍTICO para MC-38)
+    - priority: -10
+      then:
+        - delay: 2s
+        - logger.log: "GPIO2 estabilizado, sensores activos"
+
+
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# ================= UART =================
+uart:
+  id: uart0_hw
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 115200
+
+# ================= LOGGER =================
+logger:
+  baud_rate: 0
+
+# ================= LED =================
+output:
+  - platform: gpio
+    pin: GPIO18
+    id: led_gpio18
+
+# ================= I2C =================
+i2c:
+  sda: GPIO6
+  scl: GPIO7
+  scan: true
+
+# ================= APDS9960 =================
+apds9960:
+  - address: 0x39
+
+# ================= RELÉS =================
+switch:
+  # Relé principal (interno)
+  - platform: gpio
+    pin: GPIO19
+    id: rele_principal
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  # Relé de seguridad (interno)
+  - platform: gpio
+    pin: GPIO10
+    id: rele_seguridad
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  # 🔘 Switch maestro (VISIBLE en Home Assistant)
+  - platform: template
+    name: "Luz"
+    id: luz_maestra
+    restore_mode: RESTORE_DEFAULT_OFF
+    optimistic: false
+
+    lambda: |-
+      return id(rele_principal).state;
+
+    turn_on_action:
+      - switch.turn_on: rele_principal
+      - switch.turn_on: rele_seguridad
+      - output.turn_on: led_gpio18
+      - uart.write:
+          id: uart0_hw
+          data: "Luz ENCENDIDA\r\n"
+
+    turn_off_action:
+      - switch.turn_off: rele_principal
+      - switch.turn_off: rele_seguridad
+      - output.turn_off: led_gpio18
+      - uart.write:
+          id: uart0_hw
+          data: "Luz APAGADA\r\n"
+
+# ================= SENSORES BINARIOS =================
+binary_sensor:
+  # GESTO ABAJO → ENCENDER
+  - platform: apds9960
+    direction: DOWN
+    name: "Gesto Abajo"
+    on_press:
+      - switch.turn_on: luz_maestra
+
+  # GESTO ARRIBA → APAGAR
+  - platform: apds9960
+    direction: UP
+    name: "Gesto Arriba"
+    on_press:
+      - switch.turn_off: luz_maestra
+
+  # SENSOR MAGNÉTICO DE PUERTA
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLDOWN
+      inverted: true
+    name: "Puerta interruptor"
+    device_class: door
+    filters:
+      - delayed_on: 100ms
+      - delayed_off: 100ms
+
+# ================= HOME ASSISTANT =================
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+
+# ================= WIFI =================
+wifi:
+  ssid: ""
+  password: ""
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  on_connect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi conectado!\r\n"
+
+  on_disconnect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi desconectado!\r\n"
+
+  ap:
+    ssid: "Esphome-Fallback"
+    password: "123456789"
+
+  fast_connect: true
+  reboot_timeout: 0s
+  power_save_mode: none
+
+captive_portal:

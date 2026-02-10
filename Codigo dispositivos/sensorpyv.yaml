@@ -1,0 +1,84 @@
+esphome:
+  name: sensorpyv
+  friendly_name: SensorPyV
+
+  on_boot:
+    # Animación LED (muy temprano)
+    - priority: -100
+      then:
+        - output.turn_on: led_gpio18
+        - delay: 300ms
+        - output.turn_off: led_gpio18
+        - delay: 300ms
+        - output.turn_on: led_gpio18
+        - delay: 300ms
+        - output.turn_off: led_gpio18
+
+    # Estabilización GPIO2 (CRÍTICO para MC-38)
+    - priority: -10
+      then:
+        - delay: 2s
+        - logger.log: "GPIO2 estabilizado, sensores activos"
+
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: arduino
+
+# ================= LOGGER =================
+logger:
+
+# ================= LED =================
+output:
+  - platform: gpio
+    pin: GPIO17
+    id: led_gpio18
+
+# ================= SENSOR PUERTA / VENTANA =================
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO6
+      mode: INPUT_PULLDOWN
+      inverted: true
+    name: "Puerta o Ventana"
+    device_class: door
+
+    # Circuito CERRADO → LED ENCENDIDO
+    on_press:
+      - output.turn_on: led_gpio18
+
+    # Circuito ABIERTO → LED APAGADO
+    on_release:
+      - output.turn_off: led_gpio18
+
+# ================= HOME ASSISTANT =================
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+
+# ================= WIFI =================
+wifi:
+  ssid: 
+  password: 
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  on_connect:
+    - output.turn_on: led_gpio18
+
+  on_disconnect:
+    - output.turn_off: led_gpio18
+
+  ap:
+    ssid: "Sensorpyv Fallback Hotspot"
+    password: "WepMwPBAwhRX"
+
+captive_portal:

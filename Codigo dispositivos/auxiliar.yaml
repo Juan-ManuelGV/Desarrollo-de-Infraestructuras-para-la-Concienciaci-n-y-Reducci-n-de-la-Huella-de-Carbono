@@ -1,0 +1,106 @@
+esphome:
+  name: auxiliar
+  friendly_name: Auxiliar
+
+  on_boot:
+    priority: -100
+    then:
+      - uart.write:
+          id: uart0_hw
+          data: "Iniciando firmware...\r\n"
+      - output.turn_on: led_gpio18
+      - delay: 300ms
+      - output.turn_off: led_gpio18
+      - delay: 300ms
+      - output.turn_on: led_gpio18
+      - delay: 300ms
+      - output.turn_off: led_gpio18
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# ================= UART =================
+uart:
+  id: uart0_hw
+  tx_pin: GPIO21
+  rx_pin: GPIO20
+  baud_rate: 115200
+
+# ================= LOGGER =================
+logger:
+  baud_rate: 0
+
+# ================= LED =================
+output:
+  - platform: gpio
+    pin: GPIO18
+    id: led_gpio18
+
+# ================= DS18B20 =================
+dallas:
+  - pin: GPIO5
+
+# ================= SENSORES =================
+sensor:
+  # Temperatura
+  - platform: dallas
+    index: 0
+    name: "Temperatura Auxiliar"
+    accuracy_decimals: 1
+
+  # LDR en porcentaje
+  - platform: adc
+    pin: GPIO4
+    name: "Luz Ambiente Auxiliar"
+    update_interval: 30s
+    attenuation: 11db
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return 100 - ((x / 4.095) * 100.0);
+
+# ================= PIR =================
+binary_sensor:
+  - platform: gpio
+    pin: GPIO7
+    name: "Movimiento Auxiliar"
+    device_class: motion
+
+# ================= HOME ASSISTANT =================
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: "6"
+
+# ================= WIFI =================
+wifi:
+  ssid: ""
+  password: ""
+
+  manual_ip:
+    static_ip: 
+    gateway: 
+    subnet: 
+
+  on_connect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi conectado!\r\n"
+    - output.turn_on: led_gpio18
+
+  on_disconnect:
+    - uart.write:
+        id: uart0_hw
+        data: "WiFi desconectado!\r\n"
+    - output.turn_off: led_gpio18
+
+  ap:
+    ssid: "Auxiliar Fallback Hotspot"
+    password: "rBdA5mj1ahug"
+
+captive_portal:
